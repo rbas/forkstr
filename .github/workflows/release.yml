@@ -22,7 +22,7 @@ jobs:
     name: Release quality gate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
@@ -51,7 +51,7 @@ jobs:
             target: aarch64-apple-darwin
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
@@ -74,7 +74,7 @@ jobs:
           set -euo pipefail
           archive="forkstr-${RELEASE_TAG}-${TARGET}.tar.gz"
           tar -C "target/${TARGET}/release" -czf "$archive" forkstr
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: forkstr-${{ env.RELEASE_TAG }}-${{ matrix.target }}
           path: forkstr-${{ env.RELEASE_TAG }}-${{ matrix.target }}.tar.gz
@@ -87,7 +87,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_TAG }}
@@ -95,7 +95,7 @@ jobs:
         with:
           tool: convco
           fallback: none
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: forkstr-${{ env.RELEASE_TAG }}-*
           path: dist
