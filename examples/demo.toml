@@ -4,22 +4,14 @@ failure = "fail-fast"
 
 [[stages]]
 name = "checks"
-
-[[stages.commands]]
-name = "format"
-run = '''printf '\033[32mFormatting checked\033[0m\n'; sleep 1'''
-
-[[stages.commands]]
-name = "tests"
-run = '''for n in 1 2 3 4; do printf 'Test %s passed\n' "$n"; sleep 1; done'''
-
-[[stages.commands]]
-name = "analysis"
-run = '''printf 'Checking project...\n'; sleep 2; printf '\033[36mAnalysis complete\033[0m\n''''
+commands = [
+  { name = "format", run = '''printf '\033[32mFormatting checked\033[0m\n'; sleep 1''' },
+  { name = "tests", run = '''for n in 1 2 3 4; do printf 'Test %s passed\n' "$n"; sleep 1; done''' },
+  { name = "analysis", run = '''printf 'Checking project...\n'; sleep 2; printf '\033[36mAnalysis complete\033[0m\n'''' },
+]
 
 [[stages]]
 name = "package"
-
-[[stages.commands]]
-name = "archive"
-run = '''printf 'Packaging...\n'; sleep 1; printf 'Done\n''''
+commands = [
+  { name = "archive", run = '''printf 'Packaging...\n'; sleep 1; printf 'Done\n'''' },
+]

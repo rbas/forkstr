@@ -28,6 +28,11 @@ checks or invent project commands merely to increase concurrency.
 6. Create or edit `forkstr.toml`, then run `forkstr validate`. Fix configuration
    errors before executing the commands.
 
+Prefer a `commands = [{ ... }, ...]` array beneath each `[[stages]]` entry so a
+human can see the complete stage in one place. The expanded
+`[[stages.commands]]` spelling is equivalent and remains valid, but use it only
+when it materially improves readability.
+
 Stages are barriers: they run in declaration order. Commands within the active
 stage are eligible to run concurrently, subject to `jobs` and `resources`.
 Commands waiting for a resource do not prevent an unrelated command from

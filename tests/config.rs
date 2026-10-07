@@ -8,6 +8,50 @@ use std::{ffi::OsStr, num::NonZeroUsize};
 const VALID: &str = "version=1\n[[stages]]\nname='checks'\n[[stages.commands]]\nrun='true'\n[[stages.commands]]\nrun='true'\n";
 
 #[test]
+fn grouped_command_arrays_are_equivalent_to_command_tables() {
+    let grouped = r#"
+version = 1
+[[stages]]
+name = "checks"
+commands = [
+  { name = "format", run = "true" },
+  { name = "tests", run = "true", env = { MODE = "ci" }, resources = ["database"] },
+]
+"#;
+    let expanded = r#"
+version = 1
+[[stages]]
+name = "checks"
+[[stages.commands]]
+name = "format"
+run = "true"
+[[stages.commands]]
+name = "tests"
+run = "true"
+env = { MODE = "ci" }
+resources = ["database"]
+"#;
+    let temp = tempfile::tempdir().unwrap();
+    let grouped = config::parse(grouped, temp.path(), &Overrides::default()).unwrap();
+    let expanded = config::parse(expanded, temp.path(), &Overrides::default()).unwrap();
+    let grouped_stage = &grouped.stages[0];
+    let expanded_stage = &expanded.stages[0];
+
+    assert_eq!(grouped_stage.name, expanded_stage.name);
+    assert_eq!(grouped_stage.jobs, expanded_stage.jobs);
+    assert_eq!(grouped_stage.failure, expanded_stage.failure);
+    for (grouped, expanded) in grouped_stage.commands.iter().zip(&expanded_stage.commands) {
+        assert_eq!(grouped.id, expanded.id);
+        assert_eq!(grouped.name, expanded.name);
+        assert_eq!(grouped.script, expanded.script);
+        assert_eq!(grouped.shell, expanded.shell);
+        assert_eq!(grouped.cwd, expanded.cwd);
+        assert_eq!(grouped.env, expanded.env);
+        assert_eq!(grouped.resources, expanded.resources);
+    }
+}
+
+#[test]
 fn defaults_to_all_commands_and_config_directory() {
     let temp = tempfile::tempdir().unwrap();
     let plan = config::parse(VALID, temp.path(), &Overrides::default()).unwrap();

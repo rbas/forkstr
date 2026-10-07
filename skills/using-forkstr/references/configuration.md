@@ -21,29 +21,23 @@ CI = "true"
 name = "quality"
 jobs = 3
 failure = "finish-stage"
-
-[[stages.commands]]
-name = "format"
-run = "npm run format:check"
-
-[[stages.commands]]
-name = "lint"
-run = "npm run lint"
-
-[[stages.commands]]
-name = "integration"
-run = "npm run test:integration"
-cwd = "services/api"
-env = { TEST_DATABASE = "forkstr-tests" }
-resources = ["test-database"]
+commands = [
+  { name = "format", run = "npm run format:check" },
+  { name = "lint", run = "npm run lint" },
+  { name = "integration", run = "npm run test:integration", cwd = "services/api", env = { TEST_DATABASE = "forkstr-tests" }, resources = ["test-database"] },
+]
 
 [[stages]]
 name = "package"
-
-[[stages.commands]]
-name = "build"
-run = "npm run build"
+commands = [
+  { name = "build", run = "npm run build" },
+]
 ```
+
+This grouped command-array form and repeated `[[stages.commands]]` tables are
+equivalent TOML representations. Prefer the grouped form for hand-authored files
+because it keeps each stage together. Use the expanded form when a command has
+enough fields or long values that one inline table becomes harder to scan.
 
 Top-level `shell`, `cwd`, and `env` are inherited by commands. A command may
 override `shell` and `cwd`; command environment values extend or replace inherited

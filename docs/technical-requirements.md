@@ -89,24 +89,16 @@ APP_MODE = "development"
 [[stages]]
 name = "checks"
 # jobs = 2
-
-[[stages.commands]]
-name = "format"
-run = "./check-format.sh"
-
-[[stages.commands]]
-name = "tests"
-run = "./test.sh"
-env = { TEST_GROUP = "unit" }
-resources = ["build-cache"]
+commands = [
+  { name = "format", run = "./check-format.sh" },
+  { name = "tests", run = "./test.sh", env = { TEST_GROUP = "unit" }, resources = ["build-cache"] },
+]
 
 [[stages]]
 name = "package"
-
-[[stages.commands]]
-name = "archive"
-run = "./package.fish"
-shell = "fish"
+commands = [
+  { name = "archive", run = "./package.fish", shell = "fish" },
+]
 ```
 
 Pipeline fields: `version`, `shell`, `cwd`, `env`, `jobs`, `failure`, `layout`, `report`, and `stages`. Stage fields: `name`, `jobs`, `failure`, and `commands`. Command fields: optional `name`, required `run`, and optional `shell`, `cwd`, `env`, and `resources`.

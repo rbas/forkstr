@@ -6,15 +6,8 @@ failure = "fail-fast"
 [[stages]]
 name = "checks"
 # No jobs limit: all three commands start concurrently.
-
-[[stages.commands]]
-name = "format"
-run = "cargo fmt --check"
-
-[[stages.commands]]
-name = "clippy"
-run = "cargo clippy --locked --all-targets -- -D warnings"
-
-[[stages.commands]]
-name = "nextest"
-run = "cargo nextest run --locked"
+commands = [
+  { name = "format", run = "cargo fmt --check" },
+  { name = "clippy", run = "cargo clippy --locked --all-targets -- -D warnings" },
+  { name = "nextest", run = "cargo nextest run --locked" },
+]

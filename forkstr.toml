@@ -2,32 +2,18 @@ version = 1
 
 [[stages]]
 name = "checks"
+# Every check can run concurrently. Clippy and tests use separate target
+# directories so they do not contend for Cargo's build lock.
+commands = [
+  { name = "format",    run = "cargo fmt --check" },
+  { name = "installer", run = "sh -n install.sh" },
+  { name = "audit",     run = "cargo audit" },
+  { name = "clippy",    run = "cargo clippy --locked --all-targets -- -D warnings", env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/clippy" } },
+  { name = "tests",     run = "cargo nextest run --locked", env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/tests" } },
+]
 
-# Every command in this stage can run concurrently. Compiling commands use
-# separate target directories so they do not contend for Cargo's build lock.
-[[stages.commands]]
-name = "format"
-run = "cargo fmt --check"
-
-[[stages.commands]]
-name = "installer"
-run = "sh -n install.sh"
-
-[[stages.commands]]
-name = "audit"
-run = "cargo audit"
-
-[[stages.commands]]
-name = "clippy"
-run = "cargo clippy --locked --all-targets -- -D warnings"
-env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/clippy" }
-
-[[stages.commands]]
-name = "tests"
-run = "cargo nextest run --locked"
-env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/tests" }
-
-[[stages.commands]]
+[[stages]]
 name = "release"
-run = "cargo build --locked --release"
-env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/release" }
+commands = [
+  { name = "build", run = "cargo build --locked --release" },
+]

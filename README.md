@@ -45,30 +45,22 @@ version = 1
 
 [[stages]]
 name = "quality"
-
-[[stages.commands]]
-name = "format"
-run = "npm run format:check"
-
-[[stages.commands]]
-name = "lint"
-run = "npm run lint"
-
-[[stages.commands]]
-name = "tests"
-run = "npm test"
-
-[[stages.commands]]
-name = "audit"
-run = "npm audit"
+commands = [
+  { name = "format", run = "npm run format:check" },
+  { name = "lint",   run = "npm run lint" },
+  { name = "tests",  run = "npm test" },
+  { name = "audit",  run = "npm audit" },
+]
 
 [[stages]]
 name = "package"
-
-[[stages.commands]]
-name = "release"
-run = "npm run build"
+commands = [
+  { name = "release", run = "npm run build" },
+]
 ```
+
+The same configuration is available as
+[examples/javascript-quality.toml](examples/javascript-quality.toml).
 
 Then validate and run it:
 
