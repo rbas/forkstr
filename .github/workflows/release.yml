@@ -30,9 +30,11 @@ jobs:
           components: rustfmt, clippy
       - uses: taiki-e/install-action@v2
         with:
-          tool: cargo-nextest
+          tool: cargo-nextest,cargo-audit
           fallback: none
       - run: cargo fmt --check
+      - run: sh -n install.sh
+      - run: cargo audit
       - run: cargo clippy --locked --all-targets -- -D warnings
       - run: cargo nextest run --locked --profile ci
 

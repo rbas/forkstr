@@ -3,24 +3,31 @@ version = 1
 [[stages]]
 name = "checks"
 
-# Formatting does not compile, so it can run alongside the first Cargo build.
+# Every command in this stage can run concurrently. Compiling commands use
+# separate target directories so they do not contend for Cargo's build lock.
 [[stages.commands]]
 name = "format"
 run = "cargo fmt --check"
 
-# These commands share Cargo's target directory. Forkstr runs them in registration
-# order instead of launching processes that block on the same build lock.
+[[stages.commands]]
+name = "installer"
+run = "sh -n install.sh"
+
+[[stages.commands]]
+name = "audit"
+run = "cargo audit"
+
 [[stages.commands]]
 name = "clippy"
 run = "cargo clippy --locked --all-targets -- -D warnings"
-resources = ["cargo-target"]
+env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/clippy" }
 
 [[stages.commands]]
 name = "tests"
 run = "cargo nextest run --locked"
-resources = ["cargo-target"]
+env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/tests" }
 
 [[stages.commands]]
 name = "release"
 run = "cargo build --locked --release"
-resources = ["cargo-target"]
+env = { CARGO_TARGET_DIR = ".cache/forkstr-targets/release" }

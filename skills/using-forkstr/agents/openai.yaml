@@ -1,0 +1,4 @@
+interface:
+  display_name: "Using Forkstr"
+  short_description: "Build observable parallel command pipelines"
+  default_prompt: "Use $using-forkstr to turn this project's commands into a safe staged pipeline."

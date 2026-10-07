@@ -8,4 +8,5 @@ pub mod model;
 pub mod process;
 pub mod report;
 pub mod runner;
+pub mod skill;
 pub mod terminal;

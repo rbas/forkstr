@@ -128,11 +128,17 @@ forkstr run [--config PATH]
             [--log-dir PATH]
 
 forkstr validate [--config PATH]
+forkstr skill export DIRECTORY
 forkstr --help
 forkstr --version
 ```
 
 Explicit CLI `jobs` and `failure` values override every stage. Otherwise stage settings override pipeline settings, then defaults. Presentation flags override their configuration equivalents. No command filtering, ad hoc command grammar, or implicit stage selection is introduced in the MVP.
+
+`skill export` is an offline operation that writes the complete bundled agent
+skill beneath a newly created destination directory. It does not inspect project
+configuration, authenticate, or configure an agent. Existing destinations are
+rejected without modification, and the destination's parent must already exist.
 
 Live output and lifecycle information go to stderr. The combined report goes to stdout. A concise final status summary always goes to stderr, including when the combined report is disabled. Color auto-detection is evaluated separately for each output destination; no color flag can restore styling that a child never emitted.
 

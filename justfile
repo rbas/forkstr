@@ -3,9 +3,11 @@ set shell := ["bash", "-cu"]
 default:
     @just --list
 
-# Run the same gates as CI, in lock-friendly order.
+# Run the same gates as CI serially.
 check:
     cargo fmt --check
+    sh -n install.sh
+    cargo audit
     cargo clippy --locked --all-targets -- -D warnings
     cargo nextest run --locked
     cargo build --locked --release
@@ -16,7 +18,7 @@ version:
 
 # Infer the next version, or force patch/minor/major.
 next-version kind="auto":
-    @case "{{kind}}" in \
+    @case "{{ kind }}" in \
       auto)  convco version --bump ;; \
       patch) convco version --bump --patch ;; \
       minor) convco version --bump --minor ;; \
@@ -28,7 +30,7 @@ next-version kind="auto":
 bump kind="auto":
     #!/usr/bin/env bash
     set -euo pipefail
-    case "{{kind}}" in
+    case "{{ kind }}" in
       auto)  next="$(convco version --bump)" ;;
       patch) next="$(convco version --bump --patch)" ;;
       minor) next="$(convco version --bump --minor)" ;;
@@ -58,7 +60,7 @@ release kind="auto":
       echo "release requires a clean working tree" >&2
       exit 2
     fi
-    just bump "{{kind}}"
+    just bump "{{ kind }}"
     version="$(sed -nE '/^\[package\]$/,/^\[/{s/^version = "([^"]+)"/\1/p;}' Cargo.toml)"
     git add Cargo.toml Cargo.lock CHANGELOG.md
     git commit -m "chore(release): v$version"

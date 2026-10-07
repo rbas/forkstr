@@ -141,6 +141,10 @@ The configuration needs an explicit ordered representation for stages and comman
 
 Users need a way to run a configuration and validate it without executing commands. Validate the complete configuration before any command starts where possible. Empty pipelines or stages, invalid limits, empty command strings, and ambiguous or unknown fields must produce actionable errors. Runtime launch failures must identify the affected stage and command.
 
+Users also need an offline way to export the complete, language-agnostic Forkstr
+agent skill from the binary. Export must not configure an agent or overwrite an
+existing destination.
+
 Use the TOML version 1 schema and CLI defined in the technical requirements. Use one command-list representation for both single-command and multi-command stages.
 
 ## MVP acceptance scenarios
@@ -159,6 +163,7 @@ Use the TOML version 1 schema and CLI defined in the technical requirements. Use
 12. A configured installed shell is used; an unavailable shell gives a clear error. Working-directory overrides apply consistently.
 13. Color, partial lines, progress updates, large output, and output emitted during cancellation are handled without cross-pane corruption or silent loss.
 14. Commands sharing a resource never overlap, while a later command with no conflict can run alongside the current resource holder.
+15. Skill export reproduces every bundled file and refuses to overwrite an existing destination.
 
 ## Decisions resolved for the MVP
 

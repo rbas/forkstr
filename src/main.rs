@@ -4,7 +4,7 @@ use forkstr::{
     model::{ColorMode, FailurePolicy, PaneLayout, ReportMode, Transport, UiMode},
     report,
     runner::{self, Control, View},
-    terminal,
+    skill, terminal,
 };
 use std::{
     io::{self, IsTerminal, Write},
@@ -30,7 +30,24 @@ enum Action {
         #[arg(short, long, default_value = "forkstr.toml")]
         config: PathBuf,
     },
+    Skill(SkillArgs),
 }
+
+#[derive(Args)]
+struct SkillArgs {
+    #[command(subcommand)]
+    command: SkillCommand,
+}
+
+#[derive(Subcommand)]
+enum SkillCommand {
+    /// Export the bundled AI skill offline without configuring an agent.
+    Export {
+        /// New destination directory; its parent must already exist.
+        directory: PathBuf,
+    },
+}
+
 #[derive(Args)]
 struct RunArgs {
     #[arg(short, long, default_value = "forkstr.toml")]
@@ -95,6 +112,22 @@ fn run(cli: Cli) -> Result<u8, Box<dyn std::error::Error>> {
                 plan.stages.len(),
                 plan.stages.iter().map(|s| s.commands.len()).sum::<usize>()
             )?;
+            Ok(0)
+        }
+        Action::Skill(SkillArgs {
+            command: SkillCommand::Export { directory },
+        }) => {
+            let exported = skill::export(&directory)?;
+            writeln!(
+                io::stdout(),
+                "Exported Forkstr skill to {}",
+                exported.skill_directory.display()
+            )?;
+            writeln!(
+                io::stdout(),
+                "Review the complete skill folder, then import it using your agent's native workflow."
+            )?;
+            writeln!(io::stdout(), "No agent configuration was changed.")?;
             Ok(0)
         }
         Action::Run(args) => {

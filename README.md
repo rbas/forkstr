@@ -1,179 +1,144 @@
 # Forkstr
 
-**Run independent commands together, dependent commands in order, and keep every
-output stream visible.**
+**Your quality gate should not be a queue.**
 
-Local project checks tend to become either a slow shell script or a pile of
-terminal tabs. A shell script hides concurrent output and stops being pleasant
-when a command needs input; terminal tabs make ordering, failure handling, and
-cleanup your problem. Forkstr turns those commands into a small staged pipeline:
+Do you run formatting, linting, tests, security checks, and a release build before
+you push? Do you run them one after another because parallel shell output becomes
+an unreadable mess?
 
-- stages run from top to bottom;
-- independent commands within a stage run concurrently;
-- every command gets a live terminal pane and retained logs;
-- one failure cancels or finishes the current stage according to your policy;
-- Ctrl-C cleans up the command's process group, not just its top-level process.
+Forkstr runs independent commands at the same time and gives each one its own
+live terminal pane. You see what is running, inspect each output stream, send
+input when a command needs it, and get one clear result at the end.
 
-Forkstr is a single Rust binary for macOS and Linux. It is useful for local test
-suites, linters, development services, code generators, and any workflow that is
-too structured for several terminal tabs but does not need a build system or CI
-server.
+![Forkstr running a quality gate in five live terminal panes](assets/forkstr.png)
 
-## Install
-
-Download an archive for your platform from
-[GitHub Releases](https://github.com/rbas/forkstr/releases), unpack it, and put
-`forkstr` somewhere on your `PATH`.
-
-To build from source, install Rust 1.88 or newer and run:
-
-```sh
-cargo install --git https://github.com/rbas/forkstr --locked
+```text
+format ─────┐
+lint ───────┤
+tests ──────┼──▶ package
+audit ──────┘
+  stage 1          stage 2
 ```
 
-## Quick start
+Commands inside a **stage** run in parallel. The next stage starts only after
+the current one succeeds. That is the whole model: group work that can overlap,
+and use a new stage only where you need a barrier.
+
+## Try it
+
+Install the latest pre-built binary on Linux or macOS:
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://raw.githubusercontent.com/rbas/forkstr/main/install.sh | sh
+```
+
+The [installer](install.sh) detects the platform, downloads the latest release,
+verifies its SHA-256 checksum, and installs it in `/usr/local/bin` (using `sudo`
+only when necessary). Set `FORKSTR_INSTALL_DIR` to choose another directory. The
+[GitHub Releases](https://github.com/rbas/forkstr/releases) page provides archives
+and checksums for manual installation.
 
 Create `forkstr.toml` in your project:
 
 ```toml
 version = 1
-failure = "fail-fast"
 
 [[stages]]
-name = "static-checks"
+name = "quality"
 
 [[stages.commands]]
 name = "format"
-run = "cargo fmt --check"
+run = "npm run format:check"
 
 [[stages.commands]]
-name = "docs"
-run = "markdownlint '**/*.md'"
+name = "lint"
+run = "npm run lint"
+
+[[stages.commands]]
+name = "tests"
+run = "npm test"
+
+[[stages.commands]]
+name = "audit"
+run = "npm audit"
 
 [[stages]]
-name = "tests"
+name = "package"
 
 [[stages.commands]]
-name = "unit"
-run = "cargo nextest run --locked"
+name = "release"
+run = "npm run build"
 ```
 
-Then run:
+Then validate and run it:
 
 ```sh
 forkstr validate
 forkstr run
 ```
 
-In this example formatting and documentation checks run together. Tests start
-only after both succeed. Put commands in the same stage only when they can make
-progress independently.
+Here, all four quality checks start together. The release build starts only when
+all four finish successfully. If one fails, Forkstr shows which command failed
+and preserves the output instead of burying it in interleaved logs.
 
-Commands can declare named resources when they must not overlap. This repository
-runs formatting alongside Clippy, while Clippy, Nextest, and the release build
-share `resources = ["cargo-target"]` and therefore run one at a time in
-registration order. Later commands without a conflicting resource can still
-start instead of waiting behind them.
+## Real parallelism, not parallel waiting
 
-```toml
-[[stages.commands]]
-name = "clippy"
-run = "cargo clippy --locked --all-targets -- -D warnings"
-resources = ["cargo-target"]
+Some commands look independent but contend for the same resource: a test
+database, fixed port, browser, device, generated directory, or shared build
+cache. Forkstr gives you two ways to model that honestly:
 
-[[stages.commands]]
-name = "tests"
-run = "cargo nextest run --locked"
-resources = ["cargo-target"]
-```
+- Give conflicting commands the same `resources = ["test-database"]` value and
+  Forkstr will run them one at a time while unrelated commands keep moving.
+- Configure isolated databases, caches, working directories, or output paths so
+  work can genuinely overlap when that isolation is safe.
 
-Resources are logical names chosen by the configuration author. They can model a
-Cargo target directory, database, fixed port, device, or any other exclusive
-facility. A command acquires all its resources immediately before launch and
-holds them until process cleanup and output capture settle. Giving Cargo commands
-different `CARGO_TARGET_DIR` values also removes their conflict, but recompiles
-dependencies and consumes more disk.
+This repository uses isolated build directories in [forkstr.toml](forkstr.toml),
+but Forkstr itself is language-agnostic. It runs shell commands; the right stages
+and resources depend on your project. Measure both approaches—the fastest design
+depends on the workload, machine, and cache state.
 
-## Configuration
+## Why Forkstr instead of `command & command & wait`?
 
-Forkstr reads `./forkstr.toml` by default. Relative working directories resolve
-from the configuration file. Pipeline and command settings support `shell`,
-`cwd`, `env`, and `resources`; stages can override `jobs` and `failure`.
+- Live panes keep concurrent output readable.
+- Stages express the ordering that actually matters.
+- Named resources prevent collisions around ports, databases, devices, or build
+  directories without serializing unrelated work.
+- Fail-fast and finish-stage policies make failure behavior explicit.
+- Process-group cleanup stops child processes too when you cancel a run.
+- Complete raw output, event metadata, and readable transcripts are retained.
 
-```toml
-version = 1
-jobs = 4
-failure = "finish-stage" # or "fail-fast"
-layout = "auto"          # auto, horizontal, or vertical
-report = "always"        # always or never
+Forkstr is a single Rust binary for macOS and Linux. It is deliberately smaller
+than a build system and more structured than a shell script.
 
-[env]
-APP_MODE = "development"
+## Bring Forkstr to your coding agent
 
-[[stages]]
-name = "checks"
-jobs = 2
-
-[[stages.commands]]
-name = "api"
-run = "./scripts/check-api"
-
-[[stages.commands]]
-name = "web"
-run = "npm test"
-cwd = "web"
-env = { CI = "true" }
-```
-
-Useful commands:
+The binary includes a language-agnostic skill that teaches AI coding agents how
+to discover a project's real commands, create or revise `forkstr.toml`, model
+stages and resources, validate the pipeline, and help a human operate the UI.
+Export it to a new directory:
 
 ```sh
-forkstr run --jobs 2 --failure finish-stage
-forkstr run --layout vertical
-forkstr run --ui plain --transport pipe --report never
-forkstr run --log-dir ./logs --color never
-forkstr run --help
+forkstr skill export ./forkstr-skills
 ```
 
-Pane controls are **Tab** / **Shift-Tab** to select, **z** to enlarge, **Esc** to
-restore the layout, and **Enter** to send input to a running PTY command. Press
-**Ctrl-G** to stop sending input. In observe mode, **Ctrl-C** cancels the whole
-pipeline; in input mode it interrupts the selected command.
+Review the exported files, then import the complete `using-forkstr` folder using
+your agent's native skill workflow. Exporting never changes agent configuration
+and refuses to overwrite an existing destination.
 
-Each run stores complete raw output, event metadata, and a readable ANSI
-transcript in a private log directory. The final report preserves configuration
-order even when commands finish in another order. Exit codes are `0` for
-success, `1` for a command failure, `2` for configuration/infrastructure errors,
-`130` for SIGINT, and `143` for SIGTERM.
-
-## Development and releases
+## Working on Forkstr
 
 Install [just](https://github.com/casey/just),
-[cargo-nextest](https://nexte.st/), and [convco](https://convco.github.io/), then:
+[cargo-nextest](https://nexte.st/),
+[cargo-audit](https://github.com/rustsec/rustsec/tree/main/cargo-audit), and
+[convco](https://convco.github.io/).
 
 ```sh
-just check                 # format, Clippy, tests, release build
-just next-version          # infer the next version from conventional commits
-just bump                  # update manifest, lockfile, and CHANGELOG.md
-just bump minor            # force patch, minor, or major
-just release               # alternatively: bump, commit, and tag in one step
-git push origin main --follow-tags
+forkstr run       # parallel quality gate with live output
+just check        # equivalent checks, run serially
+just release      # bump, commit, and tag from Conventional Commits
 ```
 
-Use [Conventional Commits](https://www.conventionalcommits.org/): `fix:` bumps
-the patch version, `feat:` bumps the minor version, and a breaking change bumps
-the major version. Before `1.0.0`, Convco's default pre-major rules keep features
-on patch releases and breaking changes on minor releases. A pushed `v*` tag
-starts the release workflow and attaches platform archives plus SHA-256 checksums
-to a GitHub Release.
-
-The project is tested with formatting, Clippy, and Nextest on macOS and Linux.
-See [CHANGELOG.md](CHANGELOG.md), [the roadmap](docs/roadmap.md), and the
-[technical requirements](docs/technical-requirements.md) for deeper detail.
-
-## Current limits
-
-Full-screen terminal applications, terminal-query protocols, shell job control,
-and deliberately detached processes are not guaranteed. Windows is not yet
-supported. Forkstr is intentionally not a dependency resolver, distributed task
-scheduler, or CI system.
+See the [changelog](CHANGELOG.md), [roadmap](docs/roadmap.md), and
+[technical requirements](docs/technical-requirements.md) for deeper detail. The
+bundled, shareable agent guidance lives in the
+[Forkstr skill](skills/using-forkstr/SKILL.md).
