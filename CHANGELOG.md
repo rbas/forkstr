@@ -1,12 +1,20 @@
 # Changelog
 
-All notable changes to Forkstr are documented here. Versions are generated from
-[Conventional Commits](https://www.conventionalcommits.org/) with
-[Convco](https://convco.github.io/).
+### [v0.1.1](https://github.com/rbas/forkstr/compare/v0.1.0...82930ed3c7b15640873fdd4c7a04307c9fbcf5f3) (2026-10-07)
 
-## 0.1.0 - 2026-10-07
+#### Features
+
+* **scheduler:** coordinate exclusive resources
+([82930ed](https://github.com/rbas/forkstr/commit/82930ed3c7b15640873fdd4c7a04307c9fbcf5f3))
+
+#### Fixes
+
+* **ci:** allow retrying tagged releases
+([962971a](https://github.com/rbas/forkstr/commit/962971a00de0e848aad2812e9883495710ac73fc))
+
+## v0.1.0 (2026-10-07)
 
 ### Features
 
-- Initial macOS and Linux release with staged concurrent execution, live terminal
-  panes, PTY input, failure policies, process-group cleanup, and retained output.
+* publish initial forkstr release
+([cbd7e90](https://github.com/rbas/forkstr/commit/cbd7e9038a78dd4a1bc10c11663963f2300a8768))
