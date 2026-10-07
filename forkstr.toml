@@ -1,0 +1,31 @@
+version = 1
+
+# Cargo commands share package/build caches and can wait on each other's locks.
+# Keep them in separate stages so their order is explicit and their output useful.
+[[stages]]
+name = "format"
+
+[[stages.commands]]
+name = "rustfmt"
+run = "cargo fmt --check"
+
+[[stages]]
+name = "lint"
+
+[[stages.commands]]
+name = "clippy"
+run = "cargo clippy --locked --all-targets -- -D warnings"
+
+[[stages]]
+name = "test"
+
+[[stages.commands]]
+name = "nextest"
+run = "cargo nextest run --locked"
+
+[[stages]]
+name = "build"
+
+[[stages.commands]]
+name = "release"
+run = "cargo build --locked --release"

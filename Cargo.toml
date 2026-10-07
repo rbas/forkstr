@@ -1,0 +1,33 @@
+[package]
+name = "forkstr"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Sequential stages, parallel commands, live terminal output"
+repository = "https://github.com/rbas/forkstr"
+homepage = "https://github.com/rbas/forkstr"
+readme = "README.md"
+keywords = ["cli", "concurrency", "development-tools", "terminal"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+clap = { version = "4.6", features = ["derive"] }
+crossterm = "0.29"
+libc = "0.2"
+nix = { version = "0.31", features = ["process", "signal", "term", "fs"] }
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+signal-hook = "0.3"
+tempfile = "3"
+thiserror = "2"
+toml = "1"
+vt100 = "0.16"
+vte = "0.15"
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"

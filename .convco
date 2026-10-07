@@ -1,0 +1,7 @@
+---
+host: https://github.com
+owner: rbas
+repository: forkstr
+initialBumpVersion: 0.1.0
+tagPrefix: v
+commitTemplate: "{{type}}{{#if scope}}({{scope}}){{/if}}: {{description}}"
