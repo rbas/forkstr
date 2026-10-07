@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v[0-9]*.[0-9]*.[0-9]*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to retry
+        required: true
+        type: string
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 permissions:
   contents: read
@@ -14,6 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -41,13 +52,13 @@ jobs:
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
       - name: Verify tag matches the package version
         shell: bash
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           package_version="$(cargo metadata --no-deps --format-version 1 \
@@ -59,15 +70,14 @@ jobs:
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           archive="forkstr-${RELEASE_TAG}-${TARGET}.tar.gz"
           tar -C "target/${TARGET}/release" -czf "$archive" forkstr
       - uses: actions/upload-artifact@v4
         with:
-          name: forkstr-${{ github.ref_name }}-${{ matrix.target }}
-          path: forkstr-${{ github.ref_name }}-${{ matrix.target }}.tar.gz
+          name: forkstr-${{ env.RELEASE_TAG }}-${{ matrix.target }}
+          path: forkstr-${{ env.RELEASE_TAG }}-${{ matrix.target }}.tar.gz
           if-no-files-found: error
 
   publish:
@@ -80,18 +90,17 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
       - uses: taiki-e/install-action@v2
         with:
           tool: convco
           fallback: none
       - uses: actions/download-artifact@v4
         with:
-          pattern: forkstr-${{ github.ref_name }}-*
+          pattern: forkstr-${{ env.RELEASE_TAG }}-*
           path: dist
           merge-multiple: true
       - name: Create checksums and release notes
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           set -euo pipefail
           cd dist
@@ -102,7 +111,6 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
           gh release create "$RELEASE_TAG" dist/* \
             --verify-tag \
