@@ -66,6 +66,7 @@ pub struct CommandSpec {
     pub shell: PathBuf,
     pub cwd: PathBuf,
     pub env: BTreeMap<OsString, OsString>,
+    pub resources: Vec<String>,
 }
 
 #[derive(Debug)]

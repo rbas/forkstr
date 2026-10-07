@@ -9,7 +9,7 @@ when a command needs input; terminal tabs make ordering, failure handling, and
 cleanup your problem. Forkstr turns those commands into a small staged pipeline:
 
 - stages run from top to bottom;
-- commands within a stage run concurrently;
+- independent commands within a stage run concurrently;
 - every command gets a live terminal pane and retained logs;
 - one failure cancels or finishes the current stage according to your policy;
 - Ctrl-C cleans up the command's process group, not just its top-level process.
@@ -69,24 +69,43 @@ In this example formatting and documentation checks run together. Tests start
 only after both succeed. Put commands in the same stage only when they can make
 progress independently.
 
-Cargo commands that share one target directory may wait on Cargo's build lock.
-For that reason this repository places Clippy, Nextest, and the release build in
-separate stages. Giving each command a different `CARGO_TARGET_DIR` removes the
-lock, but recompiles dependencies and consumes more disk, so it is usually slower
-for one package.
+Commands can declare named resources when they must not overlap. This repository
+runs formatting alongside Clippy, while Clippy, Nextest, and the release build
+share `resources = ["cargo-target"]` and therefore run one at a time in
+registration order. Later commands without a conflicting resource can still
+start instead of waiting behind them.
+
+```toml
+[[stages.commands]]
+name = "clippy"
+run = "cargo clippy --locked --all-targets -- -D warnings"
+resources = ["cargo-target"]
+
+[[stages.commands]]
+name = "tests"
+run = "cargo nextest run --locked"
+resources = ["cargo-target"]
+```
+
+Resources are logical names chosen by the configuration author. They can model a
+Cargo target directory, database, fixed port, device, or any other exclusive
+facility. A command acquires all its resources immediately before launch and
+holds them until process cleanup and output capture settle. Giving Cargo commands
+different `CARGO_TARGET_DIR` values also removes their conflict, but recompiles
+dependencies and consumes more disk.
 
 ## Configuration
 
 Forkstr reads `./forkstr.toml` by default. Relative working directories resolve
 from the configuration file. Pipeline and command settings support `shell`,
-`cwd`, and `env`; stages can override `jobs` and `failure`.
+`cwd`, `env`, and `resources`; stages can override `jobs` and `failure`.
 
 ```toml
 version = 1
 jobs = 4
 failure = "finish-stage" # or "fail-fast"
 layout = "auto"          # auto, horizontal, or vertical
-report = "always"        # always, failure, or never
+report = "always"        # always or never
 
 [env]
 APP_MODE = "development"

@@ -71,6 +71,8 @@ struct Command {
     cwd: Option<PathBuf>,
     #[serde(default)]
     env: BTreeMap<String, String>,
+    #[serde(default)]
+    resources: Vec<String>,
 }
 
 pub fn load(path: &Path, overrides: &Overrides) -> Result<Pipeline, ConfigError> {
@@ -133,6 +135,21 @@ pub fn parse(text: &str, base: &Path, overrides: &Overrides) -> Result<Pipeline,
                 &command_cwd,
                 &env,
             )?;
+            let mut resource_names = HashSet::new();
+            for resource in &command.resources {
+                validate_name(resource).map_err(|_| {
+                    ConfigError::Invalid(format!(
+                        "{}/{name}: resource names must be nonempty and contain no control characters",
+                        stage.name
+                    ))
+                })?;
+                if !resource_names.insert(resource) {
+                    return invalid(format!(
+                        "{}/{name}: duplicate resource name: {resource}",
+                        stage.name
+                    ));
+                }
+            }
             commands.push(CommandSpec {
                 id: CommandId {
                     stage: stage_index,
@@ -143,6 +160,7 @@ pub fn parse(text: &str, base: &Path, overrides: &Overrides) -> Result<Pipeline,
                 shell: resolved_shell,
                 cwd: command_cwd,
                 env,
+                resources: command.resources,
             });
         }
         stages.push(StageSpec {

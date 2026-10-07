@@ -20,6 +20,22 @@ fn defaults_to_all_commands_and_config_directory() {
         plan.stages[0].commands[0].shell,
         std::path::Path::new("/bin/sh").canonicalize().unwrap()
     );
+    assert!(plan.stages[0].commands[0].resources.is_empty());
+}
+
+#[test]
+fn command_resources_are_preserved() {
+    let text = VALID.replacen(
+        "run='true'",
+        "run='true'\nresources=['cargo-target', 'database']",
+        1,
+    );
+    let temp = tempfile::tempdir().unwrap();
+    let plan = config::parse(&text, temp.path(), &Overrides::default()).unwrap();
+    assert_eq!(
+        plan.stages[0].commands[0].resources,
+        ["cargo-target", "database"]
+    );
 }
 
 #[test]
@@ -75,6 +91,8 @@ fn rejects_invalid_configuration_before_execution() {
         VALID.replace("version=1", "version=1\nshell='forkstr-nonexistent-shell'"),
         VALID.replace("version=1", "version=1\nenv={ 'BAD=KEY'='x' }"),
         VALID.replace("run='true'", "name='duplicate'\nrun='true'"),
+        VALID.replacen("run='true'", "run='true'\nresources=['']", 1),
+        VALID.replacen("run='true'", "run='true'\nresources=['cargo', 'cargo']", 1),
         "version=1\nstages=[]".into(),
         "version=1\n[[stages]]\nname='empty'\ncommands=[]".into(),
     ];

@@ -4,7 +4,7 @@ use crate::{
     process::{ChildProcess, Exit},
 };
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     io,
     path::{Path, PathBuf},
     sync::{
@@ -14,6 +14,28 @@ use std::{
     thread,
     time::Duration,
 };
+
+fn next_runnable(
+    stage: &crate::model::StageSpec,
+    pending: &VecDeque<usize>,
+    active: &[Active],
+) -> Option<usize> {
+    let occupied: HashSet<&str> = active
+        .iter()
+        .flat_map(|job| {
+            stage.commands[job.id.command]
+                .resources
+                .iter()
+                .map(String::as_str)
+        })
+        .collect();
+    pending.iter().position(|command| {
+        stage.commands[*command]
+            .resources
+            .iter()
+            .all(|resource| !occupied.contains(resource.as_str()))
+    })
+}
 
 pub enum Request {
     Input(CommandId, Vec<u8>),
@@ -201,7 +223,8 @@ pub fn execute(
             snapshot.stage = Some(stage_index);
         }
         let mut active: Vec<Active> = Vec::new();
-        let mut next = 0;
+        let mut pending: VecDeque<usize> = (0..stage.commands.len()).collect();
+        let mut waiting_announced = HashSet::new();
         let mut halt: Option<String> = None;
         loop {
             let cancel_count = control.cancellations.load(Ordering::SeqCst);
@@ -271,14 +294,14 @@ pub fn execute(
                         errors.push(format!("terminate {:?}: {error}", job.id));
                     }
                 }
-                for spec in &stage.commands[next..] {
+                for command in pending.drain(..) {
+                    let spec = &stage.commands[command];
                     state.finish(spec.id, Outcome::NotStarted(reason.clone()));
                     view.event(format!(
                         "[{}/{}] not started: {reason}",
                         stage.name, spec.name
                     ));
                 }
-                next = stage.commands.len();
             }
             let mut index = 0;
             while index < active.len() {
@@ -318,12 +341,20 @@ pub fn execute(
                 halt = Some("Forkstr infrastructure error".into());
             }
             // Recheck cancellation immediately before launching each queued job.
-            while halt.is_none() && next < stage.commands.len() && active.len() < stage.jobs.get() {
+            while halt.is_none() && !pending.is_empty() && active.len() < stage.jobs.get() {
                 if control.cancellations.load(Ordering::SeqCst) > 0 {
                     break;
                 }
-                let spec = &stage.commands[next];
-                next += 1;
+                let Some(position) = next_runnable(stage, &pending, &active) else {
+                    break;
+                };
+                let Some(command) = pending.remove(position) else {
+                    errors.push("scheduler selected a missing queued command".into());
+                    halt = Some("Forkstr infrastructure error".into());
+                    break;
+                };
+                waiting_announced.remove(&command);
+                let spec = &stage.commands[command];
                 let capture = match Capture::new(logs, spec.id) {
                     Ok(capture) => capture,
                     Err(error) => {
@@ -357,8 +388,39 @@ pub fn execute(
                     }
                 }
             }
+            if halt.is_none() && active.len() < stage.jobs.get() {
+                let occupied: HashSet<&str> = active
+                    .iter()
+                    .flat_map(|job| {
+                        stage.commands[job.id.command]
+                            .resources
+                            .iter()
+                            .map(String::as_str)
+                    })
+                    .collect();
+                for command in &pending {
+                    let spec = &stage.commands[*command];
+                    let blocked: Vec<_> = spec
+                        .resources
+                        .iter()
+                        .filter(|resource| occupied.contains(resource.as_str()))
+                        .collect();
+                    if !blocked.is_empty() && waiting_announced.insert(*command) {
+                        view.event(format!(
+                            "[{}/{}] waiting for resources: {}",
+                            stage.name,
+                            spec.name,
+                            blocked
+                                .iter()
+                                .map(|resource| resource.as_str())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        ));
+                    }
+                }
+            }
             view.publish(&state, Some(stage_index));
-            if active.is_empty() && next == stage.commands.len() {
+            if active.is_empty() && pending.is_empty() {
                 break;
             }
             thread::sleep(Duration::from_millis(5));

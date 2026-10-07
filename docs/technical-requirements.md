@@ -98,6 +98,7 @@ run = "./check-format.sh"
 name = "tests"
 run = "./test.sh"
 env = { TEST_GROUP = "unit" }
+resources = ["build-cache"]
 
 [[stages]]
 name = "package"
@@ -108,13 +109,13 @@ run = "./package.fish"
 shell = "fish"
 ```
 
-Pipeline fields: `version`, `shell`, `cwd`, `env`, `jobs`, `failure`, `layout`, `report`, and `stages`. Stage fields: `name`, `jobs`, `failure`, and `commands`. Command fields: optional `name`, required `run`, and optional `shell`, `cwd`, and `env`.
+Pipeline fields: `version`, `shell`, `cwd`, `env`, `jobs`, `failure`, `layout`, `report`, and `stages`. Stage fields: `name`, `jobs`, `failure`, and `commands`. Command fields: optional `name`, required `run`, and optional `shell`, `cwd`, `env`, and `resources`.
 
-Stage names must be nonempty and unique. Explicit command names must be nonempty and unique within their stage. Internal command identity is the pair of stage index and command index, never its display name or command text. Unnamed commands use a generated label such as `command-2`, with their command text available in the pane and report.
+Stage names must be nonempty and unique. Explicit command names must be nonempty and unique within their stage. Resource names must be nonempty, contain no control characters, and occur at most once per command; the same name on different commands establishes mutual exclusion. Internal command identity is the pair of stage index and command index, never its display name or command text. Unnamed commands use a generated label such as `command-2`, with their command text available in the pane and report.
 
 Reject unsupported schema versions, unknown fields, empty pipelines or stages, whitespace-only commands, invalid enum values, nonpositive limits, non-string environment values, and invalid environment names. Environment keys cannot be empty or contain `=` or NUL; values and process arguments cannot contain NUL.
 
-Resolve configuration to an immutable execution plan before launching children. Store original registration order, effective working directory, shell, environment, concurrency, and failure policy. Validate directories and shell executability up front; spawning still handles races or changes after validation. Validation does not execute shell scripts or promise command syntax validity.
+Resolve configuration to an immutable execution plan before launching children. Store original registration order, effective working directory, shell, environment, resources, concurrency, and failure policy. Validate directories and shell executability up front; spawning still handles races or changes after validation. Validation does not execute shell scripts or promise command syntax validity.
 
 ## CLI contract
 
@@ -168,7 +169,7 @@ Command execution states are `queued`, `running`, `settling`, `succeeded`, `fail
 
 Stages move from `pending` to `running` to `succeeded`, `failed`, or `cancelled`; untouched stages may become `skipped`. The pipeline moves from `pending` to `running`, optionally `cancelling`, then `succeeded`, `failed`, or `cancelled`. Record infrastructure errors and failure reasons separately from these statuses.
 
-The coordinator fills available slots in registration order. A slot remains occupied through settling. Observe a nonzero child exit immediately for fail-fast purposes; do not wait for output EOF to stop launches. Only move to the next stage after every started command has settled and every queued command has a final disposition.
+The coordinator fills available slots with the first resource-eligible queued command. A later independent command may pass a command waiting for a resource. Jobs and resources remain occupied through settling. Observe a nonzero child exit immediately for fail-fast purposes; do not wait for output EOF to stop launches. Only move to the next stage after every started command has settled and every queued command has a final disposition.
 
 On fail fast, the initiating command fails, active peers receive cancellation requests, and queued commands become not started. Finish-stage continues to fill slots until all commands finish, then checks aggregate success. Terminal states never revert. A child whose completed result was observed before cancellation retains it; otherwise mark a command cancelled when Forkstr interrupts unfinished execution and retain the actual wait status as diagnostic data.
 

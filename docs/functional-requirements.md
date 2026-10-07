@@ -1,6 +1,6 @@
 # Forkstr functional requirements
 
-Forkstr runs an ordered pipeline of sequential stages. Commands within a stage run concurrently, their output remains observable, and stage completion determines whether the pipeline continues. Forkstr is generic: it contains no language, build, test, or deployment-specific behavior.
+Forkstr runs an ordered pipeline of sequential stages. Independent commands within a stage run concurrently, their output remains observable, and stage completion determines whether the pipeline continues. Forkstr is generic: it contains no language, build, test, or deployment-specific behavior.
 
 Status: functional baseline, incorporating the product discussion of 6 October 2026. Implementation was subsequently authorized with Rust, SOLID principles, domain-driven design, idiomatic code, and cargo-nextest. The technical requirements record the selected defaults and implementation contracts.
 
@@ -32,13 +32,13 @@ The shell invocation contract, startup-file behavior, and shell-argument syntax 
 
 ## Concurrency and ordering
 
-By default, all commands in the active stage are eligible to run concurrently. A stage containing five commands runs five concurrent jobs when no limit is configured. There is no default CPU-based or fixed numerical cap.
+By default, all commands in the active stage are eligible to run concurrently. A stage containing five commands runs five concurrent jobs when no limit is configured and no resources conflict. There is no default CPU-based or fixed numerical cap.
 
 Users may configure a pipeline concurrency limit and override it for an individual stage. The effective limit is the stage value when set, otherwise the pipeline value, otherwise the number of commands in the stage. Limits must be positive integers.
 
-When capacity is limited, commands are launched in registration order as slots become available. Forkstr must never exceed the effective limit. Actual process progress, output arrival, and completion order are not deterministic.
+When capacity is limited, commands are launched in registration order as slots become available. A command may declare one or more named exclusive resources. It is eligible only while none of those resources is held by an active or settling command. The coordinator selects the first eligible queued command, allowing later independent work to pass a resource-blocked command. A resource is held until process cleanup and output capture settle. Forkstr must never exceed the effective job limit. Actual process progress, output arrival, and completion order are not deterministic.
 
-Terminal size must not silently change execution concurrency. Concurrent commands share the machine and may share files, ports, or other resources; Forkstr does not isolate these resources.
+Terminal size must not silently change execution concurrency. Resource names provide cooperative scheduling, not operating-system isolation: commands can still conflict through undeclared files, ports, devices, or other facilities.
 
 ## Failure policies
 
@@ -137,7 +137,7 @@ Forkstr exits zero only when all required commands and stages succeed. Command f
 
 ## Configuration and CLI requirements
 
-The MVP needs an explicit ordered configuration for stages and commands. It must support pipeline and command working directories, inherited environment with pipeline and command overrides, shell selection, optional concurrency limits, layout, failure policy, and combined-report control.
+The configuration needs an explicit ordered representation for stages and commands. It supports pipeline and command working directories, inherited environment with pipeline and command overrides, shell selection, command resource declarations, optional concurrency limits, layout, failure policy, and combined-report control.
 
 Users need a way to run a configuration and validate it without executing commands. Validate the complete configuration before any command starts where possible. Empty pipelines or stages, invalid limits, empty command strings, and ambiguous or unknown fields must produce actionable errors. Runtime launch failures must identify the affected stage and command.
 
@@ -145,7 +145,7 @@ Use the TOML version 1 schema and CLI defined in the technical requirements. Use
 
 ## MVP acceptance scenarios
 
-1. A stage with five commands and no limit makes all five eligible to run concurrently; the following stage waits for all five to succeed and settle.
+1. A stage with five commands, no limit, and no resource conflicts makes all five eligible to run concurrently; the following stage waits for all five to succeed and settle.
 2. A stage with five commands and limit two never runs more than two commands at once and launches queued work in registration order.
 3. Fail fast records the triggering failure, cancels active peers, does not launch queued work after observing the failure, and reports later stages as skipped.
 4. Finish-current-stage executes all commands in that stage despite a failure, then skips subsequent stages.
@@ -158,6 +158,7 @@ Use the TOML version 1 schema and CLI defined in the technical requirements. Use
 11. A command receives inherited environment values and its own overrides without changing a sibling command's environment.
 12. A configured installed shell is used; an unavailable shell gives a clear error. Working-directory overrides apply consistently.
 13. Color, partial lines, progress updates, large output, and output emitted during cancellation are handled without cross-pane corruption or silent loss.
+14. Commands sharing a resource never overlap, while a later command with no conflict can run alongside the current resource holder.
 
 ## Decisions resolved for the MVP
 

@@ -1,31 +1,26 @@
 version = 1
 
-# Cargo commands share package/build caches and can wait on each other's locks.
-# Keep them in separate stages so their order is explicit and their output useful.
 [[stages]]
-name = "format"
+name = "checks"
 
+# Formatting does not compile, so it can run alongside the first Cargo build.
 [[stages.commands]]
-name = "rustfmt"
+name = "format"
 run = "cargo fmt --check"
 
-[[stages]]
-name = "lint"
-
+# These commands share Cargo's target directory. Forkstr runs them in registration
+# order instead of launching processes that block on the same build lock.
 [[stages.commands]]
 name = "clippy"
 run = "cargo clippy --locked --all-targets -- -D warnings"
-
-[[stages]]
-name = "test"
+resources = ["cargo-target"]
 
 [[stages.commands]]
-name = "nextest"
+name = "tests"
 run = "cargo nextest run --locked"
-
-[[stages]]
-name = "build"
+resources = ["cargo-target"]
 
 [[stages.commands]]
 name = "release"
 run = "cargo build --locked --release"
+resources = ["cargo-target"]

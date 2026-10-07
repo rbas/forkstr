@@ -73,6 +73,29 @@ fn stage_limit_and_launch_order_hold() {
 }
 
 #[test]
+fn shared_resources_serialize_without_blocking_independent_commands() {
+    let temp = tempfile::tempdir().unwrap();
+    let text = "version=1
+[[stages]]
+name='checks'
+[[stages.commands]]
+name='first-cargo'
+run='touch first; n=0; while [ ! -e independent ]; do n=$((n+1)); [ $n -lt 300 ] || exit 90; sleep 0.01; done; test ! -e second; touch first-done'
+resources=['cargo-target']
+[[stages.commands]]
+name='second-cargo'
+run='test -e first-done; touch second'
+resources=['cargo-target']
+[[stages.commands]]
+name='independent'
+run='test -e first; test ! -e first-done; touch independent'
+";
+    let (_, result) = execute(&temp, text);
+    assert_eq!(result.exit_code, 0, "{:?}", result.errors);
+    assert!(temp.path().join("second").exists());
+}
+
+#[test]
 fn fail_fast_cancels_peers_and_skips_queued_and_later_commands() {
     let temp = tempfile::tempdir().unwrap();
     let text = config_text(

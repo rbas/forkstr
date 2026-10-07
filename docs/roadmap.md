@@ -7,7 +7,7 @@ Forkstr's initial MVP delivers sequential stages, concurrent commands, observabl
 | Area | Included behavior |
 | --- | --- |
 | Execution | Ordered stages, ordered command registration, stage barriers |
-| Concurrency | All commands in a stage by default; optional pipeline and stage limits |
+| Concurrency | Independent commands in a stage by default; optional job limits and named exclusive resources |
 | Failure | Fail fast and finish current stage; explicit reasons for skipped work |
 | Environment | Inherit the launching environment; pipeline and per-command overrides |
 | Process context | Configurable shell and working directory, including per-command overrides |
